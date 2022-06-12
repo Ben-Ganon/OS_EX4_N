@@ -49,8 +49,46 @@ void check_int(int num){
     return;
 }
 
+void err_out(){
+    printf("ERROR_FROM_EX4\n");
+    exit(-1);
+}
+
+void operate(int op, int left, int right, int client_pid,int output_fd){
+    if(op == 4 && right == 0)
+        err_out();
+    int result = 0;
+    float res_div = 0;
+    char result_str[CALC_SIZE] = {};
+    if(op == 4){
+        res_div = (float ) left / (float) right;
+        sprintf(result_str, "%f", res_div);
+        if( write(output_fd, result_str, strlen(result_str)) < 0)
+            err_out();
+        close(output_fd);
+        kill(client_pid, SIGUSR2);
+        return;
+    }
+    switch (op) {
+        case 1:
+            result = left + right;
+        case 2:
+            result = left - right;
+        case 3:
+            result = left * right;
+    }
+
+    sprintf(result_str, "%d", result);
+    if( write(output_fd, result_str, strlen(result_str)) < 0)
+        err_out();
+    close(output_fd);
+    kill(client_pid, SIGUSR2);
+}
+
 void calculate() {
     int client_fd = open("to_serv.txt", O_RDONLY);
+    if(client_fd < 0)
+        err_out();
     char calc_req[CALC_SIZE];
     read(client_fd,calc_req, CALC_SIZE);
     char* buff;
@@ -66,56 +104,43 @@ void calculate() {
     check_int(left);
     buff = strtok(NULL, " ");
     check_str(buff);
-    char operation = *buff;
+    int operation = atoi(buff);
+    check_int(operation);
     buff = strtok(NULL, " ");
     check_str(buff);
     int right = atoi(buff);
     check_int(right);
     close(client_fd);
-    if(remove("to_serv.txt") < 0){
-        printf("ERROR_FROM_EX4\n");
-        exit(-1);
-    }
-    open(client_pid_str, O_RDWR);
-    switch (operation) {
-        case '+':
-            write()
-        case '-':
-
-        case '*':
-
-        case '/':
-
-        default:
-            printf("ERROR_FROM_EX4\n");
-            exit(1);
-    }
-
+    if(remove("to_serv.txt") < 0)
+       err_out();
+    int output_fd = open(client_pid_str, O_RDWR, O_CREAT);
+    if(output_fd < 0)
+        err_out();
+    if(operation < 1 || operation > 4)
+            err_out();
+    operate(operation, left, right, client_pid, output_fd);
 
 
     }
 
-    int main(int argc, char *args[]) {
-        if (remove("to_serv.txt") != 0){
-            printf("ERROR_FROM_EX4\n");
-            exit(-1);
-        }
 
-        if (!strcmp(args[1], "CALC")) {
-            calculate();
-            return 0;
-        }
-        char* cwd_buff;
-        getcwd(cwd_buff, 150);
-        char *tempPath = getenv("PATH");
-        strcat(tempPath, ":");
-        strcat(tempPath, cwd_buff);
-        setenv("PATH", tempPath, 1);
-
-        signal(SIGUSR1, calc_req_handler);
-        signal(SIGALRM, alrm_handler);
-        alarm(60);
-        pause();
-        pause();
+int main(int argc, char *args[]) {
+    remove("to_serv.txt");
+    if (argc > 1 && !strcmp(args[1], "CALC")) {
+        calculate();
         return 0;
     }
+    char* cwd_buff[150];
+    getcwd(cwd_buff, 150);
+    char *tempPath = getenv("PATH");
+    strcat(tempPath, ":");
+    strcat(tempPath, cwd_buff);
+    setenv("PATH", tempPath, 1);
+
+    signal(SIGUSR1, calc_req_handler);
+    signal(SIGALRM, alrm_handler);
+    while(1) {
+        alarm(60);
+        pause();
+    }
+}
