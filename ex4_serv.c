@@ -131,12 +131,14 @@ int main(int argc, char *args[]) {
         calculate();
         return 0;
     }
-    char* cwd_buff[150];
+    char cwd_buff[150];
     getcwd(cwd_buff, 150);
     char *tempPath = getenv("PATH");
     strcat(tempPath, ":");
     strcat(tempPath, cwd_buff);
     setenv("PATH", tempPath, 1);
+    tempPath = getenv("PATH");
+    printf("%s\n", tempPath);
 
     signal(SIGUSR1, calc_req_handler);
     signal(SIGALRM, alrm_handler);
