@@ -61,7 +61,7 @@ void err_out(){
 
 
 int main(int argc, char* argv[]){
-    char rand_buff[6];
+    char rand_buff[7] = {};
     pid_t self = getpid();
     char pid_buff[32]={};
     sprintf(pid_buff, "%d", self);
@@ -73,17 +73,20 @@ int main(int argc, char* argv[]){
     if(serv_pid < 0)
         err_out();
     signal(SIGALRM, alrm_handlr);
-    int serv_fd = open("to_srv.txt", O_CREAT | O_RDWR, 0666);
+    int serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
     int i;
 
-    if(errno == EACCES){
+    if(access("to_srv.txt", F_OK) == 0){
         for (i = 0; i < 10; ++i) {
-            alarm((getrandom(rand_buff, 6,GRND_RANDOM))%6);
+            int wait = (getrandom(rand_buff, 6,GRND_RANDOM));
+            printf("waiting for %d", wait%6);
+            alarm((wait+1)%6);
             pause();
             serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
-            if(errno != EACCES && serv_fd > 0)
+            if(access("to_srv.txt", F_OK) != 0 && serv_fd > 0)
                 break;
         }
+        printf("i is %d serv is %d",i, serv_fd);
         if(i == 9 && serv_fd < 0)
             err_out();
     }
