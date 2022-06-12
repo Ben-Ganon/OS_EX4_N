@@ -19,6 +19,7 @@ void alrm_handler(int x){
 }
 
 void calc_req_handler(int x) {
+    signal(SIGUSR1, calc_req_handler);
     char *args[] = {"ex4_serv", "CALC", NULL};
     pid_t pid = fork();
     if (pid == 0) {
@@ -86,7 +87,7 @@ void operate(int op, int left, int right, int client_pid,int output_fd){
 }
 
 void calculate() {
-    int client_fd = open("to_serv.txt", O_RDONLY);
+    int client_fd = open("to_srv.txt", O_RDONLY);
     if(client_fd < 0)
         err_out();
     char calc_req[CALC_SIZE];
@@ -111,9 +112,9 @@ void calculate() {
     int right = atoi(buff);
     check_int(right);
     close(client_fd);
-    if(remove("to_serv.txt") < 0)
+    if(remove("to_srv.txt") < 0)
        err_out();
-    int output_fd = open(client_pid_str, O_RDWR, O_CREAT);
+    int output_fd = open(client_pid_str, O_RDWR | O_CREAT);
     if(output_fd < 0)
         err_out();
     if(operation < 1 || operation > 4)
@@ -125,7 +126,7 @@ void calculate() {
 
 
 int main(int argc, char *args[]) {
-    remove("to_serv.txt");
+    remove("to_srv.txt");
     if (argc > 1 && !strcmp(args[1], "CALC")) {
         calculate();
         return 0;
