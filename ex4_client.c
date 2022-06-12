@@ -10,20 +10,31 @@
 #include "errno.h"
 #include <sys/random.h>
 
+void err_out();
+
 void alrm_handlr(int x) {
     signal(SIGALRM, alrm_handlr);
 }
 
 void ans_handlr(int x) {
+    signal(SIGUSR2, ans_handlr);
+
     pid_t self = getpid();
-    char pid_str[32];
-    sprintf(pid_str, "%d", self);
-    char * file_string = strcat("to_client_", pid_str);
-    int calc_fd = open(file_string, O_RDONLY);
-    char buff[100];
+    printf("this pid is: %d\n", self);
+    char pid_str[32] ={};
+    char to_client[100] = {"to_client_"};
+    sprintf(pid_str, "%d", (int)self);
+    strcat(to_client, pid_str);
+    printf("opening: %s\n", to_client);
+    int calc_fd = open(to_client, O_RDONLY);
+    if(calc_fd < 0)
+        err_out();
+    char buff[100] ={};
     read(calc_fd, buff, 100);
     close(calc_fd);
+    remove(to_client);
     printf("%s\n", buff);
+
     exit(-1);
 }
 
@@ -48,25 +59,8 @@ void err_out(){
     exit(-1);
 }
 
-void get_args(char* argv[], int* pid, int* left, int* op, int* right){
-    char* buff;
-    buff = argv[1];
-    *pid = atoi(buff);
-    check_int(*pid);
-    buff = argv[2];
-    *left = atoi(buff);
-    if(*left < 0 && !strcmp(buff, "0"))
-        err_out();
-    buff = argv[3];
-     *op = atoi(buff);
-    if(op < 1 || op > 4)
-        err_out();
-    *right = atoi(argv[4]);
-    if(*right < 0 && !strcmp(buff, "0"))
-        err_out();
-}
 
-int main2(int argc, char* argv[]){
+int main(int argc, char* argv[]){
     char rand_buff[6];
     pid_t self = getpid();
     char pid_buff[32]={};
@@ -78,9 +72,8 @@ int main2(int argc, char* argv[]){
     pid_t serv_pid = atoi(argv[1]);
     if(serv_pid < 0)
         err_out();
-
     signal(SIGALRM, alrm_handlr);
-    int serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
+    int serv_fd = open("to_srv.txt", O_CREAT | O_RDWR, 0666);
     int i;
 
     if(errno == EACCES){
@@ -95,16 +88,17 @@ int main2(int argc, char* argv[]){
             err_out();
     }
 
-    char * serv_req = strcat(pid_buff,argv[2]);
+    char * serv_req = strcat(pid_buff," ");
+    serv_req = strcat(pid_buff,argv[2]);
     serv_req = strcat(pid_buff, " ");
     serv_req = strcat(pid_buff, argv[3]);
     serv_req = strcat(pid_buff, " ");
     serv_req = strcat(pid_buff, argv[4]);
-
+    printf("writing: %s\n", serv_req);
     write(serv_fd, serv_req, strlen(serv_req));
 
     close(serv_fd);
-    signal(SIGUSR1, ans_handlr);
+    signal(SIGUSR2, ans_handlr);
     alarm(30);
     kill(serv_pid, SIGUSR1);
     pause();
