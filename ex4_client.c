@@ -12,13 +12,18 @@
 
 void err_out();
 
-void alrm_handlr(int x) {
-    signal(SIGALRM, alrm_handlr);
+void file_taken_hndlr(int x) {
+    signal(SIGALRM, file_taken_hndlr);
 }
 
-void ans_handlr(int x) {
-    signal(SIGUSR2, ans_handlr);
+void timeout_handler(int x) {
+    signal(SIGALRM, timeout_handler);
+    printf("Client closed because no response was received from the server for 30 seconds\n");
+    err_out();
+}
 
+void ans_handler(int x) {
+    signal(SIGUSR2, ans_handler);
     pid_t self = getpid();
     printf("this pid is: %d\n", self);
     char pid_str[32] ={};
@@ -58,7 +63,13 @@ void err_out(){
     printf("ERROR_FROM_EX4\n");
     exit(-1);
 }
-
+int get_rand(char rand_buff[7]){
+    int x = 0;
+    for (int i = 0; i < 7; ++i) {
+        x += rand_buff[i] << i*8;
+    }
+    return abs(x) % 5 + 1;
+}
 
 int main(int argc, char* argv[]){
     char rand_buff[7] = {};
@@ -72,23 +83,26 @@ int main(int argc, char* argv[]){
     pid_t serv_pid = atoi(argv[1]);
     if(serv_pid < 0)
         err_out();
-    signal(SIGALRM, alrm_handlr);
-    int serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
-    int i;
+    signal(SIGALRM, file_taken_hndlr);
 
+    int i;
+    int serv_fd;
     if(access("to_srv.txt", F_OK) == 0){
         for (i = 0; i < 10; ++i) {
-            int wait = (getrandom(rand_buff, 6,GRND_RANDOM));
-            printf("waiting for %d", wait%6);
-            alarm((wait+1)%6);
+            getrandom(rand_buff, 6,GRND_RANDOM);
+            int x = get_rand(rand_buff);
+            printf("waiting for %d...\n",x);
+            alarm(x);
             pause();
             serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
             if(access("to_srv.txt", F_OK) != 0 && serv_fd > 0)
                 break;
         }
-        printf("i is %d serv is %d",i, serv_fd);
+        printf("i is %d serv is %d\n",i, serv_fd);
         if(i == 9 && serv_fd < 0)
             err_out();
+    } else {
+        serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
     }
 
     char * serv_req = strcat(pid_buff," ");
@@ -101,7 +115,8 @@ int main(int argc, char* argv[]){
     write(serv_fd, serv_req, strlen(serv_req));
 
     close(serv_fd);
-    signal(SIGUSR2, ans_handlr);
+    signal(SIGUSR2, ans_handler);
+    signal(SIGALRM, timeout_handler);
     alarm(30);
     kill(serv_pid, SIGUSR1);
     pause();

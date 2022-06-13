@@ -21,7 +21,6 @@ void alrm_handler(int x){
 
 void calc_req_handler(int x) {
     signal(SIGUSR1, calc_req_handler);
-    char *args[] = {"ex4_serv", "CALC", NULL};
     pid_t pid = fork();
     if (pid == 0) {
       calculate();
@@ -52,28 +51,27 @@ void err_out(){
 }
 
 void operate(int op, int left, int right, int client_pid,int output_fd){
-    if(op == 4 && right == 0)
+    if(op == 4 && right == 0){
+        close(output_fd);
         err_out();
+    }
     int result = 0;
     float res_div = 0;
     char result_str[CALC_SIZE] = {};
-    if(op == 4){
-        res_div = (float ) left / (float) right;
+    if(op == 4) {
+        res_div = (float) left / (float) right;
         sprintf(result_str, "%f", res_div);
-        if( write(output_fd, result_str, strlen(result_str)) < 0)
+        if (write(output_fd, result_str, strlen(result_str)) < 0)
             err_out();
         close(output_fd);
         kill(client_pid, SIGUSR2);
         return;
-    }
-    switch (op) {
-        case 1:
-            result = left + right;
-        case 2:
-            result = left - right;
-        case 3:
-            result = left * right;
-    }
+    } else if(op == 1)
+        result = left + right;
+    else if(op ==2)
+        result = left - right;
+    else if(op ==3)
+        result = left * right;
 
     sprintf(result_str, "%d", result);
     if( write(output_fd, result_str, strlen(result_str)) < 0)
@@ -88,8 +86,6 @@ void calculate() {
     if(read(client_fd,calc_req, CALC_SIZE) <0)
         err_out();
     char* buff;
-    printf("input received: %s\n", calc_req);
-
     buff = strtok(calc_req, " ");
     check_str(buff);
     int client_pid = atoi(buff);
@@ -119,14 +115,12 @@ void calculate() {
         err_out();
     if(remove("to_srv.txt") < 0)
        err_out();
-    printf("opening: %s\n", to);
     int output_fd = open(to, O_RDWR | O_CREAT, 0666);
     if(output_fd < 0)
         err_out();
     if(operation < 1 || operation > 4)
             err_out();
     operate(operation, left, right, client_pid, output_fd);
-    printf("closing: %d", output_fd);
     close(output_fd);
     kill(client_pid, SIGUSR2);
     exit(0);
