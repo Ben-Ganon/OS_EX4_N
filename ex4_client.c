@@ -25,12 +25,10 @@ void timeout_handler(int x) {
 void ans_handler(int x) {
     signal(SIGUSR2, ans_handler);
     pid_t self = getpid();
-    printf("this pid is: %d\n", self);
     char pid_str[32] ={};
     char to_client[100] = {"to_client_"};
     sprintf(pid_str, "%d", (int)self);
     strcat(to_client, pid_str);
-    printf("opening: %s\n", to_client);
     int calc_fd = open(to_client, O_RDONLY);
     if(calc_fd < 0)
         err_out();
@@ -87,22 +85,20 @@ int main(int argc, char* argv[]){
 
     int i;
     int serv_fd;
-    if(access("to_srv.txt", F_OK) == 0){
+    if(access("to_srv", F_OK) == 0){
         for (i = 0; i < 10; ++i) {
-            getrandom(rand_buff, 6,GRND_RANDOM);
-            int x = get_rand(rand_buff);
-            printf("waiting for %d...\n",x);
+//            getrandom(rand_buff, 6,GRND_RANDOM);
+            int x = rand()%5 + 1;
             alarm(x);
             pause();
-            serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
-            if(access("to_srv.txt", F_OK) != 0 && serv_fd > 0)
+            serv_fd = open("to_srv", O_CREAT | O_RDWR);
+            if(access("to_srv", F_OK) != 0 && serv_fd > 0)
                 break;
         }
-        printf("i is %d serv is %d\n",i, serv_fd);
         if(i == 9 && serv_fd < 0)
             err_out();
     } else {
-        serv_fd = open("to_srv.txt", O_CREAT | O_RDWR);
+        serv_fd = open("to_srv", O_CREAT | O_RDWR);
     }
 
     char * serv_req = strcat(pid_buff," ");
@@ -111,7 +107,6 @@ int main(int argc, char* argv[]){
     serv_req = strcat(pid_buff, argv[3]);
     serv_req = strcat(pid_buff, " ");
     serv_req = strcat(pid_buff, argv[4]);
-    printf("writing: %s\n", serv_req);
     write(serv_fd, serv_req, strlen(serv_req));
 
     close(serv_fd);

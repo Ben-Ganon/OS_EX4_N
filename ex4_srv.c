@@ -8,20 +8,43 @@
 #include "string.h"
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 #define CALC_SIZE 200
 
 int main(int argc, char *args[]);
 void calculate();
 
+void err_zero(int fd, int client_pid) {
+    char* err_z = "CANNOT_DIVIDE_BY_ZERO";
+    write(fd, err_z, strlen(err_z));
+    close(fd);
+    kill(client_pid, SIGUSR2);
+    exit(0);
+}
+
+void child_death_handler(int x) {
+    if(access("to_srv", F_OK) == 0){
+        remove("to_srv");
+    }
+    exit(-1);
+}
+
 void alrm_handler(int x){
+    int status, wpid;
+    while((wpid = wait(&status)) != -1);
     printf("The server was closed because no service request was received for the last 60 seconds\n");
+
     exit(-1);
 }
 
 void calc_req_handler(int x) {
-    signal(SIGUSR1, calc_req_handler);
+//    signal(SIGUSR1, calc_req_handler);
     pid_t pid = fork();
+    if(pid == -1){
+        printf("ERROR_FROM_EX4\n");
+        exit(-1);
+    }
     if (pid == 0) {
       calculate();
     } else {
@@ -37,30 +60,26 @@ void check_str(char* buff){
 }
 
 void check_int(int num){
-    if(num <= 0){
-        printf("ERROR_FROM_EX4\n");
-        exit(-1);
-    }
 
-    return;
 }
 
 void err_out(){
+    int status, wpid;
+    while((wpid = wait(&status)) != -1);
     printf("ERROR_FROM_EX4\n");
     exit(-1);
 }
 
 void operate(int op, int left, int right, int client_pid,int output_fd){
     if(op == 4 && right == 0){
-        close(output_fd);
-        err_out();
+        err_zero(output_fd, client_pid);
     }
     int result = 0;
-    float res_div = 0;
+    int res_div = 0;
     char result_str[CALC_SIZE] = {};
     if(op == 4) {
-        res_div = (float) left / (float) right;
-        sprintf(result_str, "%f", res_div);
+        res_div = left / right;
+        sprintf(result_str, "%d", res_div);
         if (write(output_fd, result_str, strlen(result_str)) < 0)
             err_out();
         close(output_fd);
@@ -79,7 +98,7 @@ void operate(int op, int left, int right, int client_pid,int output_fd){
 }
 
 void calculate() {
-    int client_fd = open("to_srv.txt", O_RDONLY);
+    int client_fd = open("to_srv", O_RDONLY);
     if(client_fd < 0)
         err_out();
     char calc_req[CALC_SIZE]= {};
@@ -101,6 +120,7 @@ void calculate() {
     buff = strtok(NULL, " ");
     check_str(buff);
     int left = atoi(buff);
+    strtol(buff,NULL,0);
     check_int(left);
     buff = strtok(NULL, " ");
     check_str(buff);
@@ -113,7 +133,7 @@ void calculate() {
     check_int(right);
     if(close(client_fd) <0)
         err_out();
-    if(remove("to_srv.txt") < 0)
+    if(remove("to_srv") < 0)
        err_out();
     int output_fd = open(to, O_RDWR | O_CREAT, 0666);
     if(output_fd < 0)
@@ -128,22 +148,17 @@ void calculate() {
 
 
 int main(int argc, char *args[]) {
-    if(access("to_srv.txt", F_OK) == 0){
-        remove("to_srv.txt");
+    if(access("to_srv", F_OK) == 0){
+        remove("to_srv");
     }
-
-    printf("server pid: %d\n", (int)getpid());
-//    char cwd_buff[150];
-//    getcwd(cwd_buff, 150);
-//    char *tempPath = getenv("PATH");
-//    strcat(tempPath, ":");
-//    strcat(tempPath, cwd_buff);
-//    setenv("PATH", tempPath, 1);
-
-    signal(SIGUSR1, calc_req_handler);
+    struct sigaction new_action;
+    new_action.sa_handler = calc_req_handler;
+    new_action.sa_flags = 0;
+//    signal(SIGUSR1, calc_req_handler);
+    sigaction(SIGUSR1, &new_action, NULL);
     signal(SIGALRM, alrm_handler);
     while(1) {
-        alarm(120);
+        alarm(60);
         pause();
     }
 }
