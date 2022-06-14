@@ -1,4 +1,6 @@
 //Ben Ganon 318731007
+
+#define _POSIX_SOURCE
 #include <stdlib.h>
 #include "stdio.h"
 #include <sys/types.h>
@@ -8,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "errno.h"
-#include <sys/random.h>
 
 void err_out();
 
@@ -18,7 +19,7 @@ void file_taken_hndlr(int x) {
 
 void timeout_handler(int x) {
     signal(SIGALRM, timeout_handler);
-    printf("Client closed because no response was received from the server for 30 seconds\n");
+    printf("Client closed because no response was received from the server for 30 seconds");
     err_out();
 }
 
@@ -91,14 +92,14 @@ int main(int argc, char* argv[]){
             int x = rand()%5 + 1;
             alarm(x);
             pause();
-            serv_fd = open("to_srv", O_CREAT | O_RDWR);
-            if(access("to_srv", F_OK) != 0 && serv_fd > 0)
+            if(access("to_srv", F_OK) != 0)
                 break;
         }
-        if(i == 9 && serv_fd < 0)
+        if(i == 10)
             err_out();
+        serv_fd = open("to_srv", O_CREAT | O_RDWR, 0666);
     } else {
-        serv_fd = open("to_srv", O_CREAT | O_RDWR);
+        serv_fd = open("to_srv", O_CREAT | O_RDWR, 0666);
     }
 
     char * serv_req = strcat(pid_buff," ");

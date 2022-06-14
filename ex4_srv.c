@@ -1,5 +1,6 @@
 //Ben Ganon 318731007
-//
+
+#define _POSIX_SOURCE
 #include <stdlib.h>
 #include "stdio.h"
 #include <sys/types.h>
